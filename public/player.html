@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#101827"><title>ส่งผลตรวจหลังจบเกม</title><link rel="stylesheet" href="style.css"><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="config.js"></script></head>
+<body><header class="top"><div class="brand">POST-MATCH <span>NETWORK EVIDENCE</span></div><div class="sub">PLAYER REPORT</div></header><main class="wrap">
+<section class="notice"><strong>โปรดอ่านก่อนส่งข้อมูล</strong><p>เว็บนี้ไม่สามารถอ่านประวัติ VPN, Proxy, DNS หรือแอปที่เคยติดตั้ง/ลบไปแล้วจากโทรศัพท์ได้ คำตอบเป็นข้อมูลที่ผู้เล่นรายงานเอง ไม่ใช่ผลสแกนยืนยัน และไม่สามารถใช้ยืนยันการโกงได้</p></section>
+<form id="reportForm" class="panel">
+<label>รหัสแมตช์<input name="match_code" maxlength="40" required placeholder="เช่น FF-2026-001"></label>
+<label>ชื่อในเกมหรือรหัสผู้เล่น<input name="player_label" maxlength="60" required placeholder="ชื่อในเกม / UID"></label>
+<label>อุปกรณ์ที่ใช้เล่น<select name="platform" required><option value="">เลือกอุปกรณ์</option><option>Android</option><option>iPhone</option></select></label>
+<div class="field"><div class="label">VPN ระหว่างเกม (ตามที่ผู้เล่นทราบ)</div><label class="choice"><input type="radio" name="vpn_status" value="yes" required> ใช้ VPN</label><label class="choice"><input type="radio" name="vpn_status" value="no"> ไม่ได้ใช้ VPN</label><label class="choice"><input type="radio" name="vpn_status" value="unsure"> ไม่แน่ใจ / จำไม่ได้</label></div>
+<div class="field"><div class="label">Proxy ระหว่างเกม (ตามที่ผู้เล่นทราบ)</div><label class="choice"><input type="radio" name="proxy_status" value="yes" required> ใช้ Proxy</label><label class="choice"><input type="radio" name="proxy_status" value="no"> ไม่ได้ใช้ Proxy</label><label class="choice"><input type="radio" name="proxy_status" value="unsure"> ไม่แน่ใจ / จำไม่ได้</label></div>
+<div class="field"><div class="label">DNS ระหว่างเกม (ตามที่ผู้เล่นทราบ)</div><label class="choice"><input type="radio" name="dns_mode" value="custom" required> ตั้ง DNS เอง / ใช้ Private DNS</label><label class="choice"><input type="radio" name="dns_mode" value="automatic"> ใช้ค่าอัตโนมัติ</label><label class="choice"><input type="radio" name="dns_mode" value="unsure"> ไม่แน่ใจ / จำไม่ได้</label></div>
+<label>รายละเอียดเพิ่มเติม (ไม่บังคับ)<textarea name="note" maxlength="500" rows="3" placeholder="รายละเอียดที่ต้องการชี้แจง"></textarea></label>
+<div class="meta" id="browserMeta"></div><label class="consent"><input type="checkbox" id="consent" required> ฉันยินยอมส่งข้อมูลนี้ให้ผู้ดูแล และเข้าใจว่าคำตอบเป็นข้อมูลที่ฉันรายงานเอง ไม่ใช่ประวัติย้อนหลังที่ระบบปฏิบัติการตรวจพบ</label>
+<button id="submitBtn" type="submit">ยืนยันและส่งรายงาน</button><div id="message" class="message" role="status"></div></form><p class="foot">อย่าส่งรหัสผ่าน, OTP หรือข้อมูลส่วนตัวที่ไม่จำเป็น</p></main>
+<script>
+(() => {
+ const cfg=window.APP_CONFIG||{}, meta={browser_online:navigator.onLine,user_agent:navigator.userAgent.slice(0,300),timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||"unknown"};
+ document.getElementById("browserMeta").textContent="ข้อมูลเบราว์เซอร์: ออนไลน์="+(meta.browser_online?"ใช่":"ไม่ใช่")+" · เขตเวลา="+meta.timezone+" · ไม่สามารถบอกได้ว่ามี VPN หรือไม่";
+ const form=document.getElementById("reportForm"),msg=document.getElementById("message"),btn=document.getElementById("submitBtn");
+ form.addEventListener("submit",async e=>{e.preventDefault();msg.textContent="";
+ if(!cfg.SUPABASE_URL||cfg.SUPABASE_URL.includes("YOUR-PROJECT")||!cfg.SUPABASE_ANON_KEY||cfg.SUPABASE_ANON_KEY.includes("YOUR_")){msg.className="message error";msg.textContent="ยังไม่ได้ตั้งค่า Supabase ใน config.js";return}
+ if(!document.getElementById("consent").checked)return;btn.disabled=true;btn.textContent="กำลังส่ง…";
+ try{const sb=window.supabase.createClient(cfg.SUPABASE_URL,cfg.SUPABASE_ANON_KEY),fd=new FormData(form);
+ const payload={match_code:String(fd.get("match_code")).trim(),player_label:String(fd.get("player_label")).trim(),platform:fd.get("platform"),vpn_status:fd.get("vpn_status"),proxy_status:fd.get("proxy_status"),dns_mode:fd.get("dns_mode"),note:String(fd.get("note")||"").trim(),consent:true,browser_online:meta.browser_online,user_agent:meta.user_agent,timezone:meta.timezone,evidence_type:"player_self_report"};
+ const {error}=await sb.from("reports").insert(payload);if(error)throw error;form.reset();msg.className="message success";msg.textContent="ส่งรายงานแล้ว ข้อมูลนี้เป็นคำรายงานของผู้เล่น ไม่ใช่หลักฐานยืนยันการใช้ VPN/Proxy/DNS";
+ }catch(err){msg.className="message error";msg.textContent="ส่งไม่สำเร็จ: "+(err.message||"โปรดลองอีกครั้ง")}finally{btn.disabled=false;btn.textContent="ยืนยันและส่งรายงาน"}
+ });
+})();
+</script></body></html>
